@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Keith Cirkel <webkit@keithcirkel.co.uk>. All rights reserved.
+ * Copyright (C) 2024 Marais Rossouw <me@marais.co>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,27 +22,29 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-// https://github.com/WICG/observable
-typedef (SubscriptionObserverCallback or SubscriptionObserver) ObserverUnion;
 
-[
-  Exposed=(Window,Worker),
-  EnabledBySetting=ObservableEnabled
-]
-interface Observable {
-  constructor(SubscriberCallback callback);
+#include "config.h"
+#include "InternalObserverForEach.h"
 
-  [CallWith=CurrentScriptExecutionContext, RaisesException] undefined subscribe(optional ObserverUnion observer = {}, optional SubscribeOptions options = {});
+#include "InternalObserver.h"
+#include "JSDOMPromiseDeferred.h"
+#include "Observable.h"
+#include "ScriptExecutionContext.h"
+#include "SubscribeOptions.h"
+#include "Subscriber.h"
+#include "SubscriberCallback.h"
+#include "VisitorCallback.h"
+#include <JavaScriptCore/JSCJSValueInlines.h>
 
-  [CallWith=CurrentScriptExecutionContext] Observable map(MapperCallback mapper);
+namespace WebCore {
 
-  [CallWith=CurrentScriptExecutionContext] Observable filter(PredicateCallback predicate);
+void createInternalObserverOperatorForEach(ScriptExecutionContext& context, Ref<Observable> observable, Ref<VisitorCallback> callback, SubscribeOptions options, RefPtr<DeferredPromise>&& promise)
+{
+	(void)context;
+	(void)observable;
+	(void)callback;
+	(void)options;
+	(void)promise;
+}
 
-  [CallWith=CurrentScriptExecutionContext] Observable take(unsigned long long amount);
-
-  [CallWith=CurrentScriptExecutionContext] Observable drop(unsigned long long amount);
-
-  // Promise-returning operators.
-
-  [CallWith=CurrentScriptExecutionContext] Promise<undefined> forEach(VisitorCallback callback, optional SubscribeOptions options = {});
-};
+} // namespace WebCore

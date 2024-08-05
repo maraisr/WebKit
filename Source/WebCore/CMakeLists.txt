@@ -1177,6 +1177,7 @@ set(WebCore_NON_SVG_IDL_FILES
     dom/ViewTransition.idl
     dom/ViewTransitionUpdateCallback.idl
     dom/VisibilityState.idl
+    dom/VisitorCallback.idl
     dom/WheelEvent.idl
     dom/WindowOrWorkerGlobalScope+TrustedTypes.idl
     dom/XMLDocument.idl

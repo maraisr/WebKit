@@ -1181,6 +1181,7 @@ JS_BINDING_IDLS := \
     $(WebCore)/dom/ViewTransition.idl \
     $(WebCore)/dom/ViewTransitionUpdateCallback.idl \
     $(WebCore)/dom/VisibilityState.idl \
+    $(WebCore)/dom/VisitorCallback.idl \
     $(WebCore)/dom/WheelEvent.idl \
     $(WebCore)/dom/WindowOrWorkerGlobalScope+TrustedTypes.idl \
     $(WebCore)/dom/XMLDocument.idl \
@@ -2615,4 +2616,3 @@ vpath %.js $(sort $(foreach f,$(WebCore_BUILTINS_SOURCES),$(realpath $(dir $(f))
 all : $(notdir $(WebCore_BUILTINS_SOURCES:%.js=%Builtins.h)) $(WebCore_BUILTINS_WRAPPERS)
 
 # ------------------------
-

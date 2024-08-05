@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Keith Cirkel <webkit@keithcirkel.co.uk>. All rights reserved.
+ * Copyright (C) 2024 Marais Rossouw <me@marais.co>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,27 +22,23 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-// https://github.com/WICG/observable
-typedef (SubscriptionObserverCallback or SubscriptionObserver) ObserverUnion;
 
-[
-  Exposed=(Window,Worker),
-  EnabledBySetting=ObservableEnabled
-]
-interface Observable {
-  constructor(SubscriberCallback callback);
+#pragma once
 
-  [CallWith=CurrentScriptExecutionContext, RaisesException] undefined subscribe(optional ObserverUnion observer = {}, optional SubscribeOptions options = {});
+#include "ActiveDOMCallback.h"
+#include "CallbackResult.h"
+#include <wtf/RefCounted.h>
 
-  [CallWith=CurrentScriptExecutionContext] Observable map(MapperCallback mapper);
+namespace WebCore {
 
-  [CallWith=CurrentScriptExecutionContext] Observable filter(PredicateCallback predicate);
+class VisitorCallback : public RefCounted<VisitorCallback>, public ActiveDOMCallback {
+public:
+    using ActiveDOMCallback::ActiveDOMCallback;
 
-  [CallWith=CurrentScriptExecutionContext] Observable take(unsigned long long amount);
+    virtual CallbackResult<void> handleEvent(JSC::JSValue, uint64_t) = 0;
 
-  [CallWith=CurrentScriptExecutionContext] Observable drop(unsigned long long amount);
-
-  // Promise-returning operators.
-
-  [CallWith=CurrentScriptExecutionContext] Promise<undefined> forEach(VisitorCallback callback, optional SubscribeOptions options = {});
+private:
+    virtual bool hasCallback() const = 0;
 };
+
+} // namespace WebCore
