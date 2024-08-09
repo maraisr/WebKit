@@ -72,7 +72,7 @@ void Observable::subscribe(ScriptExecutionContext& context, std::optional<Observ
         subscribeInternal(context, InternalObserverFromScript::create(context, nullptr), options);
 }
 
-void Observable::subscribeInternal(ScriptExecutionContext& context, Ref<InternalObserver> observer, SubscribeOptions options)
+void Observable::subscribeInternal(ScriptExecutionContext& context, Ref<InternalObserver> observer, SubscribeOptions internalOptions)
 {
     RefPtr document = dynamicDowncast<Document>(context);
     if (document && !document->isFullyActive())
@@ -80,8 +80,8 @@ void Observable::subscribeInternal(ScriptExecutionContext& context, Ref<Internal
 
     auto subscriber = Subscriber::create(context, observer);
 
-    if (options.signal)
-        subscriber->followSignal(*options.signal.get());
+    if (internalOptions.signal)
+        subscriber->followSignal(*internalOptions.signal.get());
 
     Ref vm = context.globalObject()->vm();
     JSC::JSLockHolder lock(vm);
@@ -124,7 +124,7 @@ Ref<Observable> Observable::drop(ScriptExecutionContext& context, uint64_t amoun
 
 void Observable::forEach(ScriptExecutionContext& context, VisitorCallback& callback, SubscribeOptions options, Ref<DeferredPromise>&& promise)
 {
-	return createInternalObserverOperatorForEach(context, *this, callback, options, WTFMove(promise));
+	return createInternalObserverOperatorForEach(context, *this, callback, options, promise);
 }
 
 Observable::Observable(Ref<SubscriberCallback> callback)
