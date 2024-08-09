@@ -72,7 +72,9 @@ private:
             if (UNLIKELY(scope.exception())) {
                 auto* exception = scope.exception();
                 scope.clearException();
-                m_abortController->abort(*JSC::jsCast<JSDOMGlobalObject*>(globalObject), exception->value());
+                auto value = exception->value();
+                m_promise->reject<IDLAny>(value);
+                m_abortController->abort(*JSC::jsCast<JSDOMGlobalObject*>(globalObject), value);
                 return;
             }
         }
