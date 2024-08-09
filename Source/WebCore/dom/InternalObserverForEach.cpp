@@ -60,7 +60,8 @@ private:
         auto context = scriptExecutionContext();
         ASSERT(context);
 
-        Ref vm = context->globalObject()->vm();
+        auto globalObject = context->globalObject();
+        Ref vm = globalObject->vm();
         JSC::JSLockHolder lock(vm);
 
         {
@@ -71,7 +72,7 @@ private:
             if (UNLIKELY(scope.exception())) {
                 auto* exception = scope.exception();
                 scope.clearException();
-                m_promise->reject<IDLAny>(exception->value());
+                m_abortController->abort(*JSC::jsCast<JSDOMGlobalObject*>(globalObject), exception->value());
                 return;
             }
         }
@@ -120,6 +121,9 @@ void createInternalObserverOperatorForEach(ScriptExecutionContext& context, Ref<
     if (options.signal) signals.append(*options.signal);
 
     auto internalSignal = AbortSignal::any(context, signals);
+    internalSignal->addAlgorithm([&promise](JSC::JSValue reason) {
+        promise->reject<IDLAny>(reason);
+    });
 
     observable->subscribeInternal(context, observer, SubscribeOptions { .signal = WTFMove(internalSignal) });
 }
