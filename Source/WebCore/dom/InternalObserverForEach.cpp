@@ -26,6 +26,7 @@
 #include "config.h"
 #include "InternalObserverForEach.h"
 
+#include "AbortController.h"
 #include "AbortSignal.h"
 #include "InternalObserver.h"
 #include "JSDOMPromiseDeferred.h"
@@ -46,6 +47,11 @@ public:
         Ref internalObserver = adoptRef(*new InternalObserverForEach(context, callback, promise));
         internalObserver->suspendIfNeeded();
         return internalObserver;
+    }
+
+    Ref<AbortSignal> signal() const
+    {
+        return m_abortController->signal();
     }
 
 private:
@@ -93,26 +99,29 @@ private:
 
     InternalObserverForEach(ScriptExecutionContext& context, Ref<VisitorCallback> callback, Ref<DeferredPromise>& promise)
         : InternalObserver(context)
-        , m_callback(callback)
+        , m_abortController(AbortController::create(context))
         , m_promise(promise)
+        , m_callback(callback)
     {
     }
 
     uint64_t m_idx { 0 };
-    Ref<VisitorCallback> m_callback;
+    Ref<AbortController> m_abortController;
     Ref<DeferredPromise> m_promise;
+    Ref<VisitorCallback> m_callback;
 };
 
 void createInternalObserverOperatorForEach(ScriptExecutionContext& context, Ref<Observable> observable, Ref<VisitorCallback> callback, SubscribeOptions options, Ref<DeferredPromise>& promise)
 {
-    // TODO: create the dependant abort signal
-    (void)options;
-    Ref callbackSignal = AbortSignal::create(&context);
-    SubscribeOptions internalOptions;
-    internalOptions.signal = WTFMove(callbackSignal);
-
     auto observer = InternalObserverForEach::create(context, callback, promise);
-    observable->subscribeInternal(context, observer, internalOptions);
+
+    Vector<Ref<AbortSignal>> signals;
+    signals.append(observer->signal());
+    if (options.signal) signals.append(*options.signal);
+
+    auto internalSignal = AbortSignal::any(context, signals);
+
+    observable->subscribeInternal(context, observer, SubscribeOptions { .signal = WTFMove(internalSignal) });
 }
 
 } // namespace WebCore
