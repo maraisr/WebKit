@@ -1223,11 +1223,12 @@ dom/InlineClassicScript.cpp
 dom/InlineStyleSheetOwner.cpp
 dom/InputEvent.cpp
 dom/InternalObserver.cpp
-dom/InternalObserverFromScript.cpp
+dom/InternalObserverDrop.cpp
 dom/InternalObserverFilter.cpp
+dom/InternalObserverForEach.cpp
+dom/InternalObserverFromScript.cpp
 dom/InternalObserverMap.cpp
 dom/InternalObserverTake.cpp
-dom/InternalObserverDrop.cpp
 dom/KeyboardEvent.cpp
 dom/LiveNodeList.cpp
 dom/LoadableClassicScript.cpp
@@ -4648,6 +4649,7 @@ JSViewTransition.cpp
 JSViewTransitionTypeSet.cpp
 JSViewTransitionUpdateCallback.cpp
 JSVisibilityState.cpp
+JSVisitorCallback.cpp
 JSVisualViewport.cpp
 JSVoidCallback.cpp
 JSWakeLock.cpp

@@ -32,9 +32,11 @@
 #include "ExceptionCode.h"
 #include "InternalObserverDrop.h"
 #include "InternalObserverFilter.h"
+#include "InternalObserverForEach.h"
 #include "InternalObserverFromScript.h"
 #include "InternalObserverMap.h"
 #include "InternalObserverTake.h"
+#include "JSDOMPromiseDeferred.h"
 #include "JSSubscriptionObserverCallback.h"
 #include "MapperCallback.h"
 #include "PredicateCallback.h"
@@ -42,6 +44,7 @@
 #include "Subscriber.h"
 #include "SubscriberCallback.h"
 #include "SubscriptionObserver.h"
+#include "VisitorCallback.h"
 #include <wtf/TZoneMallocInlines.h>
 
 namespace WebCore {
@@ -117,6 +120,11 @@ Ref<Observable> Observable::take(ScriptExecutionContext& context, uint64_t amoun
 Ref<Observable> Observable::drop(ScriptExecutionContext& context, uint64_t amount)
 {
     return create(createSubscriberCallbackDrop(context, *this, amount));
+}
+
+void Observable::forEach(ScriptExecutionContext& context, VisitorCallback& callback, SubscribeOptions options, Ref<DeferredPromise>&& promise)
+{
+    return createInternalObserverOperatorForEach(context, *this, callback, options, promise);
 }
 
 Observable::Observable(Ref<SubscriberCallback> callback)

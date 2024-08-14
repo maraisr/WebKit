@@ -30,7 +30,7 @@ promise_test(async (t) => {
   } catch (e) {
     assert_equals(e, error);
   }
-}, "Errors thrown by Observable reject the returned promise");
+}, "forEach(): Errors thrown by Observable reject the returned promise");
 
 promise_test(async (t) => {
   const error = new Error("error");
@@ -46,7 +46,7 @@ promise_test(async (t) => {
   } catch (reason) {
     assert_equals(reason, error);
   }
-}, "Errors pushed by Observable reject the returned promise");
+}, "forEach(): Errors pushed by Observable reject the returned promise");
 
 promise_test(async (t) => {
   // This will be assigned when `source`'s teardown is called during
@@ -86,82 +86,113 @@ promise_test(async (t) => {
   } catch (e) {
     assert_equals(e, error);
   }
-}, "Errors thrown in the visitor callback reject the promise and " +
+}, "forEach(): Errors thrown in the visitor callback reject the promise and " +
    "unsubscribe from the source");
+
+promise_test(async () => {
+  let error = new Error('error');
+
+  const observable = new Observable(subscriber => {});
+  const controller = new AbortController();
+
+  const completion = observable.forEach(() => { }, { signal: controller.signal });
+
+  controller.abort(error);
+
+  try {
+	  await completion;
+	  assert_unreached("Operator promise must not resolve if its abort signal " +
+      "is rejected");
+  } catch(e) {
+	  assert_equals(e, error);
+  }
+}, "forEach(): Aborting the passed-in signal rejects the returned promise");
+
+promise_test(async () => {
+  // Promise-returning operator with an aborted signal must *immediately* reject
+  // the returned Promise, which means code "awaiting" it should run before any
+  // subsequent Promise resolution/rejection handlers are run.
+  let postSubscriptionPromiseResolved = false;
+
+  const observable = new Observable(subscriber => {
+    const inactive = !subscriber.active;
+    subscriptionImmediatelyInactive = inactive;
+  });
+
+  const rejectedPromise = observable.forEach(() => { }, {signal: AbortSignal.abort()})
+  .then(() => {
+    assert_unreached("Operator promise must not resolve its abort signal is " +
+                     "rejected");
+  }, () => {
+    // See the documentation above. The rejection handler (i.e., this code) for
+    // immediately-aborted operator Promises runs before any later-scheduled
+    // Promise resolution/rejections.
+    assert_false(postSubscriptionPromiseResolved,
+        "Operator promise rejects before later promise");
+  });
+  const postSubscriptionPromise =
+      Promise.resolve().then(() => postSubscriptionPromiseResolved = true);
+
+  await rejectedPromise;
+}, "forEach(): Subscribing with an aborted signal returns an immediately " +
+   "rejected promise");
 
 // See https://github.com/WICG/observable/issues/96 for discussion about the
 // timing of Observable AbortSignal `abort` firing and promise rejection.
-promise_test(async t => {
-  const error = new Error('custom error');
-  let rejectionError = null;
-  let outerAbortEventMicrotaskRun = false,
-      forEachPromiseRejectionMicrotaskRun = false,
-      innerAbortEventMicrotaskRun = false;
+promise_test(async () => {
+  const error = new Error('error');
+  const results = [];
 
-  const source = new Observable(subscriber => {
-    subscriber.signal.addEventListener('abort', () => {
-      queueMicrotask(() => {
-        assert_true(outerAbortEventMicrotaskRun,
-            "Inner abort: outer abort microtask has fired");
-        assert_true(forEachPromiseRejectionMicrotaskRun,
-            "Inner abort: forEach rejection microtask has fired");
-        assert_false(innerAbortEventMicrotaskRun,
-            "Inner abort: inner abort microtask has not fired");
+  const observable = new Observable(subscriber => {
+    results.push(`Subscribed. active: ${subscriber.active}`);
 
-        innerAbortEventMicrotaskRun = true;
-      });
+    subscriber.signal.addEventListener('abort', e => {
+      results.push("Inner signal abort event");
+      Promise.resolve("Inner signal Promise").then(value => results.push(value));
+    });
+
+    subscriber.addTeardown(() => {
+      results.push("Teardown");
+      Promise.resolve("Teardown Promise").then(value => results.push(value));
     });
   });
 
   const controller = new AbortController();
-  controller.signal.addEventListener('abort', () => {
-    queueMicrotask(() => {
-      assert_false(outerAbortEventMicrotaskRun,
-          "Outer abort: outer abort microtask has not fired");
-      assert_false(forEachPromiseRejectionMicrotaskRun,
-          "Outer abort: forEach rejection microtask has not fired");
-      assert_false(innerAbortEventMicrotaskRun,
-          "Outer abort: inner abort microtask has not fired");
-
-      outerAbortEventMicrotaskRun = true;
-    });
+  controller.signal.addEventListener('abort', e => {
+    results.push("Outer signal abort event");
+    Promise.resolve("Outer signal Promise").then(value => results.push(value));
   });
 
-  const promise = source.forEach(() => {}, {signal: controller.signal}).catch(e => {
-    rejectionError = e;
-    assert_true(outerAbortEventMicrotaskRun,
-        "Promise rejection: outer abort microtask has fired");
-    assert_false(forEachPromiseRejectionMicrotaskRun,
-        "Promise rejection: forEach rejection microtask has not fired");
-    assert_false(innerAbortEventMicrotaskRun,
-        "Promise rejection: inner abort microtask has not fired");
-
-    forEachPromiseRejectionMicrotaskRun = true;
+  // Subscribe.
+  observable.forEach(() => { }, { signal: controller.signal })
+    .catch(e => {
+      assert_equals(e, error);
+      results.push("Operator promise rejected");
   });
-
-  // This should trigger the following, in this order:
-  //   1. Fire the `abort` event at the outer AbortSignal, whose handler
-  //      manually queues a microtask.
-  //   2. Calls "signal abort" on the outer signal's dependent signals. This
-  //      queues a microtask to reject the `forEach()` promise.
-  //   3. Fire the `abort` event at the inner AbortSignal, whose handler
-  //      manually queues a microtask.
   controller.abort(error);
 
-  // After a single task, assert that everything has happened correctly (and
-  // incrementally in the right order);
-  await new Promise(resolve => {
-    t.step_timeout(resolve);
-  });
-  assert_true(outerAbortEventMicrotaskRun,
-      "Final: outer abort microtask has fired");
-  assert_true(forEachPromiseRejectionMicrotaskRun,
-      "Final: forEach rejection microtask has fired");
-  assert_true(innerAbortEventMicrotaskRun,
-      "Final: inner abort microtask has fired");
-  assert_equals(rejectionError, error, "Promise is rejected with the right " +
-      "value");
-}, "forEach visitor callback rejection microtask ordering");
+  assert_array_equals(results, [
+    "Subscribed. active: true",
+    "Inner signal abort event",
+    "Teardown",
+    "Outer signal abort event",
+  ], "Events and teardowns are fired in the right ordered");
+
+  // Everything microtask above should be queued up by now, so queue one more
+  // final microtask that will run after all of the others, wait for it, and the
+  // check `results` is right.
+  await Promise.resolve();
+  assert_array_equals(results, [
+    "Subscribed. active: true",
+    "Inner signal abort event",
+    "Teardown",
+    "Outer signal abort event",
+    "Operator promise rejected",
+    "Inner signal Promise",
+    "Teardown Promise",
+    "Outer signal Promise",
+  ], "Promises resolve in the right order");
+}, "forEach(): Operator Promise abort ordering");
 
 promise_test(async (t) => {
   const source = new Observable((subscriber) => {
@@ -181,4 +212,4 @@ promise_test(async (t) => {
 
   const completionValue = await completion;
   assert_equals(completionValue, undefined, "Promise resolves with undefined");
-}, "forEach() promise resolves with undefined");
+}, "forEach(): Promise resolves with undefined");

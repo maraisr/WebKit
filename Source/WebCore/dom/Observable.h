@@ -26,6 +26,7 @@
 #pragma once
 
 #include "ExceptionOr.h"
+#include "JSDOMPromiseDeferredForward.h"
 #include "ScriptWrappable.h"
 #include "SubscriberCallback.h"
 #include "VoidCallback.h"
@@ -33,11 +34,13 @@
 
 namespace WebCore {
 
+class DeferredPromise;
 class InternalObserver;
-class ScriptExecutionContext;
 class JSSubscriptionObserverCallback;
-class PredicateCallback;
 class MapperCallback;
+class PredicateCallback;
+class ScriptExecutionContext;
+class VisitorCallback;
 struct SubscriptionObserver;
 struct SubscribeOptions;
 
@@ -61,6 +64,10 @@ public:
     Ref<Observable> take(ScriptExecutionContext&, uint64_t);
 
     Ref<Observable> drop(ScriptExecutionContext&, uint64_t);
+
+    // Promise-returning operators.
+
+    void forEach(ScriptExecutionContext&, VisitorCallback&, SubscribeOptions, Ref<DeferredPromise>&&);
 
 private:
     Ref<SubscriberCallback> m_subscriberCallback;
