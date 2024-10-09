@@ -1,12 +1,21 @@
-CONSOLE MESSAGE: before abort
-CONSOLE MESSAGE: source::abort
-CONSOLE MESSAGE: controller::abort
-CONSOLE MESSAGE: after abort
-CONSOLE MESSAGE: before promise
-CONSOLE MESSAGE: rejected
-CONSOLE MESSAGE: source::abort:microtask
-CONSOLE MESSAGE: controller::abort:microtask
-CONSOLE MESSAGE: after promise
 
-PASS forEach(): Visitor callback rejection microtask ordering
+FAIL forEach(): Visitor callback called synchronously for each value promise_test: Unhandled rejection with value: object "TypeError: source.forEach is not a function. (In 'source.forEach((value) => {
+    results.push(value);
+  })', 'source.forEach' is undefined)"
+FAIL Errors thrown by Observable reject the returned promise assert_equals: expected object "Error: error" but got object "TypeError: source.forEach is not a function. (In 'source.forEach(() => {
+      assert_unreached("Visitor callback is not invoked when Observable errors");
+    })', 'source.forEach' is undefined)"
+FAIL Errors pushed by Observable reject the returned promise assert_equals: expected object "Error: error" but got object "TypeError: source.forEach is not a function. (In 'source.forEach(() => {
+      assert_unreached("Visitor callback is not invoked when Observable errors");
+    })', 'source.forEach' is undefined)"
+FAIL Errors thrown in the visitor callback reject the promise and unsubscribe from the source promise_test: Unhandled rejection with value: object "TypeError: source.forEach is not a function. (In 'source.forEach((value) => {
+    results.push(value);
+    if (value === 2) {
+      throw error;
+    }
+  })', 'source.forEach' is undefined)"
+FAIL forEach visitor callback rejection microtask ordering promise_test: Unhandled rejection with value: object "TypeError: source.forEach is not a function. (In 'source.forEach(() => {}, {signal: controller.signal})', 'source.forEach' is undefined)"
+FAIL forEach() promise resolves with undefined promise_test: Unhandled rejection with value: object "TypeError: source.forEach is not a function. (In 'source.forEach((value) => {
+    results.push(value);
+  })', 'source.forEach' is undefined)"
 
