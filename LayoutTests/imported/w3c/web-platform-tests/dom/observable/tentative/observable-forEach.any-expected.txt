@@ -1,10 +1,12 @@
+CONSOLE MESSAGE: before abort
+CONSOLE MESSAGE: source::abort
+CONSOLE MESSAGE: controller::abort
+CONSOLE MESSAGE: after abort
+CONSOLE MESSAGE: before promise
+CONSOLE MESSAGE: rejected
+CONSOLE MESSAGE: source::abort:microtask
+CONSOLE MESSAGE: controller::abort:microtask
+CONSOLE MESSAGE: after promise
 
-PASS forEach(): Visitor callback called synchronously for each value
-PASS forEach(): Errors thrown by Observable reject the returned promise
-PASS forEach(): Errors pushed by Observable reject the returned promise
-PASS forEach(): Errors thrown in the visitor callback reject the promise and unsubscribe from the source
-PASS forEach(): Aborting the passed-in signal rejects the returned promise
-PASS forEach(): Subscribing with an aborted signal returns an immediately rejected promise
-PASS forEach(): Operator Promise abort ordering
-PASS forEach(): Promise resolves with undefined
+PASS forEach(): Visitor callback rejection microtask ordering
 

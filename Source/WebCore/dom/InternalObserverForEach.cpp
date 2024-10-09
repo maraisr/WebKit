@@ -42,12 +42,14 @@ namespace WebCore {
 
 class InternalObserverForEach final : public InternalObserver {
 public:
-    static Ref<InternalObserverForEach> create(ScriptExecutionContext& context, Ref<VisitorCallback> callback, Ref<AbortSignal>& signal, Ref<DeferredPromise>& promise)
+    static Ref<InternalObserverForEach> create(ScriptExecutionContext& context, Ref<VisitorCallback> callback, Ref<DeferredPromise>& promise)
     {
-        Ref internalObserver = adoptRef(*new InternalObserverForEach(context, callback, signal, promise));
+        Ref internalObserver = adoptRef(*new InternalObserverForEach(context, callback, promise));
         internalObserver->suspendIfNeeded();
         return internalObserver;
     }
+
+    Ref<AbortSignal> signal() const { return m_signal; }
 
 private:
     void next(JSC::JSValue value) final
@@ -57,7 +59,6 @@ private:
 
         Ref vm = context->globalObject()->vm();
 
-        JSC::Exception* exception = nullptr;
         {
             JSC::JSLockHolder lock(vm);
 
@@ -68,20 +69,31 @@ private:
             // rejection handlers and the abort signal.
             auto scope = DECLARE_CATCH_SCOPE(vm);
 
+            WTFLogAlways("VisitorCallback::handleEvent open");
             m_callback->handleEvent(value, m_idx++);
+            WTFLogAlways("VisitorCallback::handleEvent close");
 
-            exception = scope.exception();
-            if (UNLIKELY(exception))
+            JSC::Exception* exception = scope.exception();
+            if (UNLIKELY(exception)) {
+                WTFLogAlways("  next exception open");
                 scope.clearException();
+                WTFLogAlways("    reject exception open");
+                auto value = exception->value();
+                m_promise->reject<IDLAny>(value);
+                WTFLogAlways("    reject exception close");
+                WTFLogAlways("    abort exception open");
+                m_signal->signalAbort(value);
+                WTFLogAlways("    abort exception close");
+                WTFLogAlways("  next exception close");
+            }
         }
-
-        if (UNLIKELY(exception))
-            return m_signal->signalAbort(exception->value());
     }
 
     void error(JSC::JSValue value) final
     {
+        WTFLogAlways("error open");
         m_promise->reject<IDLAny>(value);
+        WTFLogAlways("error close");
     }
 
     void complete() final
@@ -100,10 +112,10 @@ private:
         m_callback->visitJSFunction(visitor);
     }
 
-    InternalObserverForEach(ScriptExecutionContext& context, Ref<VisitorCallback> callback, Ref<AbortSignal>& signal, Ref<DeferredPromise>& promise)
+    InternalObserverForEach(ScriptExecutionContext& context, Ref<VisitorCallback> callback, Ref<DeferredPromise>& promise)
         : InternalObserver(context)
         , m_callback(callback)
-        , m_signal(signal)
+        , m_signal(AbortSignal::create(&context))
         , m_promise(promise)
     {
     }
@@ -116,22 +128,36 @@ private:
 
 void createInternalObserverOperatorForEach(ScriptExecutionContext& context, Ref<Observable> observable, Ref<VisitorCallback> callback, SubscribeOptions options, Ref<DeferredPromise>& promise)
 {
-    Ref<AbortSignal> signal = AbortSignal::create(&context);
+    WTFLogAlways("InternalObserverForEach::create open");
+    auto observer = InternalObserverForEach::create(context, callback, promise);
+    WTFLogAlways("InternalObserverForEach::create close");
 
+    Vector<Ref<AbortSignal>> signals = { observer->signal() };
+
+    WTFLogAlways("AbortSignal::any open");
     if (UNLIKELY(options.signal)) {
-        if (UNLIKELY((*options.signal).aborted()))
-            return promise->reject<IDLAny>((*options.signal).reason().getValue());
-
-        signal->signalFollow(*options.signal);
+        signals.append(*options.signal);
     }
+    WTFLogAlways("AbortSignal::any close");
 
+    auto signal = AbortSignal::createDependent(context, signals);
+
+    WTFLogAlways("AbortSignal::isAborted open");
+    if (UNLIKELY(signal->aborted()))
+        return promise->reject<IDLAny>(signal->reason().getValue());
+    WTFLogAlways("AbortSignal::isAborted close");
+
+    WTFLogAlways("AbortSignal::addAlgorithm open");
     signal->addAlgorithm([promise](JSC::JSValue reason) {
+        WTFLogAlways("  aborted reject open");
         promise->reject<IDLAny>(reason);
+        WTFLogAlways("  aborted reject close");
     });
+    WTFLogAlways("AbortSignal::addAlgorithm close");
 
-    auto observer = InternalObserverForEach::create(context, callback, signal, promise);
-
+    WTFLogAlways("InternalObserverForEach::subscribeInternal open");
     observable->subscribeInternal(context, observer, SubscribeOptions { .signal = &signal.get() });
+    WTFLogAlways("InternalObserverForEach::subscribeInternal close");
 }
 
 } // namespace WebCore
