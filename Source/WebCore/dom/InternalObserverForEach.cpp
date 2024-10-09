@@ -34,8 +34,6 @@
 #include "ScriptExecutionContext.h"
 #include "SubscribeOptions.h"
 #include "Subscriber.h"
-#include "SubscriberCallback.h"
-#include "VisitorCallback.h"
 #include <JavaScriptCore/JSCJSValueInlines.h>
 
 namespace WebCore {
