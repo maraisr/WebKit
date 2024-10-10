@@ -26,6 +26,10 @@
 #include "Observable.h"
 
 #include "AbortSignal.h"
+#include "CallbackResult.h"
+#include "Document.h"
+#include "Exception.h"
+#include "ExceptionCode.h"
 #include "InternalObserverDrop.h"
 #include "InternalObserverFilter.h"
 #include "InternalObserverForEach.h"
@@ -38,6 +42,8 @@
 #include "PredicateCallback.h"
 #include "SubscribeOptions.h"
 #include "Subscriber.h"
+#include "SubscriberCallback.h"
+#include "SubscriptionObserver.h"
 #include "VisitorCallback.h"
 #include <wtf/TZoneMallocInlines.h>
 
