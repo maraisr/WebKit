@@ -74,20 +74,14 @@ void Observable::subscribe(ScriptExecutionContext& context, std::optional<Observ
 
 void Observable::subscribeInternal(ScriptExecutionContext& context, Ref<InternalObserver> observer, SubscribeOptions options)
 {
-    WTFLogAlways("Observable::subscribeInternal open");
-
     RefPtr document = dynamicDowncast<Document>(context);
     if (document && !document->isFullyActive())
         return;
 
-    WTFLogAlways("Observable::subscribeInternal::subscribe open");
     auto subscriber = Subscriber::create(context, observer);
-    WTFLogAlways("Observable::subscribeInternal::subscribe close");
 
     if (options.signal) {
-        WTFLogAlways("Observable::subscribeInternal::follow open");
         subscriber->followSignal(*options.signal.get());
-        WTFLogAlways("Observable::subscribeInternal::follow close");
     }
 
     Ref vm = context.globalObject()->vm();
@@ -100,12 +94,9 @@ void Observable::subscribeInternal(ScriptExecutionContext& context, Ref<Internal
     JSC::Exception* previousException = nullptr;
     {
         auto catchScope = DECLARE_CATCH_SCOPE(vm);
-        WTFLogAlways("Observable::subscribeInternal::subscriber open");
         m_subscriberCallback->handleEvent(subscriber);
-        WTFLogAlways("Observable::subscribeInternal::subscriber close");
         previousException = catchScope.exception();
         if (previousException) {
-            WTFLogAlways("Observable::subscribeInternal::subscriber close (with exception)");
             catchScope.clearException();
             subscriber->error(previousException->value());
         }

@@ -94,20 +94,19 @@ Ref<AbortSignal> AbortSignal::any(ScriptExecutionContext& context, const Vector<
     return resultSignal;
 }
 
-Ref<AbortSignal> AbortSignal::createDependent(ScriptExecutionContext& context, const Vector<Ref<AbortSignal>>& signals)
-{
-    Ref resultSignal = AbortSignal::create(&context);
+// Ref<AbortSignal> AbortSignal::createDependent(ScriptExecutionContext& context, const Vector<Ref<AbortSignal>>& signals)
+// {
+//     Ref resultSignal = AbortSignal::create(&context);
 
-    resultSignal->markAsDependent();
-    for (auto& signal : signals) {
-        // Abort the result if this memeber signal is aborted
-        signal->addSourceSignal(resultSignal);
-        // if the result is aborted, abort the member signal
-        signal->addDependentSignal(resultSignal);
-    }
+//     resultSignal->markAsDependent();
+//     for (auto& signal : signals) {
+//         signal->markAsDependent();
+//         signal->addSourceSignal(resultSignal);
+//         signal->addDependentSignal(resultSignal);
+//     }
 
-    return resultSignal;
-}
+//     return resultSignal;
+// }
 
 AbortSignal::AbortSignal(ScriptExecutionContext* context, Aborted aborted, JSC::JSValue reason)
     : ContextDestructionObserver(context)

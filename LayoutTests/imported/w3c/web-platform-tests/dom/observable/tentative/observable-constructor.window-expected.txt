@@ -1,6 +1,5 @@
-
-PASS No observer handlers can be invoked in detached document
-PASS Subscriber.error() does not "report the exception" even when an `error()` handler is not present, when it is invoked in a detached document
-PASS Cannot subscribe to an Observable in a detached document
-FAIL Observable from EventTarget does not get notified for events in detached documents promise_test: Unhandled rejection with value: object "TypeError: event_target.on is not a function. (In 'event_target.on('customevent')', 'event_target.on' is undefined)"
-
+layer at (0,0) size 800x600
+  RenderView at (0,0) size 800x600
+layer at (0,0) size 800x600
+  RenderBlock {HTML} at (0,0) size 800x600
+    RenderBody {BODY} at (8,8) size 784x584

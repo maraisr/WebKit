@@ -100,30 +100,22 @@ void Subscriber::followSignal(AbortSignal& signal)
     if (signal.aborted())
         close(signal.reason().getValue());
     else {
-        WTFLogAlways("Subscriber::followSignal::addAlgorithm open");
         signal.addAlgorithm([this](JSC::JSValue reason) {
-            WTFLogAlways("Subscriber::followSignal::abort open");
             close(reason);
-            WTFLogAlways("Subscriber::followSignal::abort close");
         });
-        WTFLogAlways("Subscriber::followSignal::addAlgorithm close");
     }
 }
 
 void Subscriber::close(JSC::JSValue reason)
 {
-    WTFLogAlways("Subscriber::close open");
     auto* context = scriptExecutionContext();
     if (!context || !m_active)
         return;
 
     m_active = false;
 
-    WTFLogAlways("Subscriber::close::abort open");
     m_abortController->abort(*JSC::jsCast<JSDOMGlobalObject*>(context->globalObject()), reason);
-    WTFLogAlways("Subscriber::close::abort close");
 
-    WTFLogAlways("Subscriber::close::teardown open");
     {
         Locker locker { m_teardownsLock };
         for (auto teardown = m_teardowns.rbegin(); teardown != m_teardowns.rend(); ++teardown) {
@@ -132,7 +124,6 @@ void Subscriber::close(JSC::JSValue reason)
             (*teardown)->handleEvent();
         }
     }
-    WTFLogAlways("Subscriber::close::teardown close");
 
     stop();
 }
