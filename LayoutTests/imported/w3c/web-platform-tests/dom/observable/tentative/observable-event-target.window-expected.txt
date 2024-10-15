@@ -1,5 +1,4 @@
-layer at (0,0) size 800x600
-  RenderView at (0,0) size 800x600
-layer at (0,0) size 800x600
-  RenderBlock {HTML} at (0,0) size 800x600
-    RenderBody {BODY} at (8,8) size 784x584
+
+FAIL EventTarget Observables can listen for events in the capturing or bubbling phase body.on is not a function. (In 'body.on('click', {capture: true})', 'body.on' is undefined)
+FAIL EventTarget Observables can be 'passive' target.on is not a function. (In 'target.on('event', {passive: true})', 'target.on' is undefined)
+
