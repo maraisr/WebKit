@@ -50,7 +50,7 @@ public:
     static Ref<AbortSignal> timeout(ScriptExecutionContext&, uint64_t milliseconds);
     static Ref<AbortSignal> any(ScriptExecutionContext&, const Vector<Ref<AbortSignal>>&);
 
-    static Ref<AbortSignal> createDependent(ScriptExecutionContext&, const Vector<Ref<AbortSignal>>&);
+    // static Ref<AbortSignal> createDependent(ScriptExecutionContext&, const Vector<Ref<AbortSignal>>&);
 
     static uint32_t addAbortAlgorithmToSignal(AbortSignal&, Ref<AbortAlgorithm>&&);
     static void removeAbortAlgorithmFromSignal(AbortSignal&, uint32_t algorithmIdentifier);
