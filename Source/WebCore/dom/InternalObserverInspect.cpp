@@ -184,8 +184,7 @@ private:
 
     void removeAbortHandler()
     {
-        if (m_abortAlgorithmHandler)
-            m_subscriber->protectedSignal()->removeAlgorithm(std::exchange(m_abortAlgorithmHandler, std::nullopt));
+        m_subscriber->protectedSignal()->removeAlgorithm(m_abortAlgorithmHandler);
     }
 
     InternalObserverInspect(ScriptExecutionContext& context, Ref<Subscriber> subscriber, const ObservableInspector& inspector)
@@ -193,25 +192,26 @@ private:
         , m_subscriber(subscriber)
         , m_inspector(inspector)
     {
-        if (m_inspector.abort) {
-            m_abortAlgorithmHandler = m_subscriber->protectedSignal()->addAlgorithm([this, protectedThis = Ref { *this }](JSC::JSValue reason) {
-                auto exception = wrapWithExceptionSteps([&] {
-                    m_inspector.abort->handleEvent(reason);
-                });
+        m_abortAlgorithmHandler = m_subscriber->protectedSignal()->addAlgorithm([this, protectedThis = Ref { *this }](JSC::JSValue reason) {
+            // TODO: Do this outside this callback
+            if (!m_inspector.abort) return;
 
-                if (exception) {
-                    auto* globalObject = protectedScriptExecutionContext()->globalObject();
-                    ASSERT(globalObject);
-
-                    reportException(globalObject, exception);
-                }
+            auto exception = wrapWithExceptionSteps([&] {
+                m_inspector.abort->handleEvent(reason);
             });
-        }
+
+            if (exception) {
+                auto* globalObject = protectedScriptExecutionContext()->globalObject();
+                ASSERT(globalObject);
+
+                reportException(globalObject, exception);
+            }
+        });
     }
 
     Ref<Subscriber> m_subscriber;
     ObservableInspector m_inspector;
-    std::optional<uint32_t> m_abortAlgorithmHandler;
+    uint32_t m_abortAlgorithmHandler;
 };
 
 Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable> observable, RefPtr<JSSubscriptionObserverCallback> next)
