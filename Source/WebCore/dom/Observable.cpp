@@ -37,6 +37,7 @@
 #include "InternalObserverFirst.h"
 #include "InternalObserverForEach.h"
 #include "InternalObserverFromScript.h"
+#include "InternalObserverInspect.h"
 #include "InternalObserverLast.h"
 #include "InternalObserverMap.h"
 #include "InternalObserverSome.h"
@@ -44,6 +45,8 @@
 #include "JSDOMPromiseDeferred.h"
 #include "JSSubscriptionObserverCallback.h"
 #include "MapperCallback.h"
+#include "ObservableInspector.h"
+#include "ObservableInspectorAbortCallback.h" // TODO: REMOVE THIS SOMEWHERE ELSE
 #include "PredicateCallback.h"
 #include "SubscribeOptions.h"
 #include "Subscriber.h"
@@ -122,6 +125,24 @@ Ref<Observable> Observable::take(ScriptExecutionContext& context, uint64_t amoun
 Ref<Observable> Observable::drop(ScriptExecutionContext& context, uint64_t amount)
 {
     return create(createSubscriberCallbackDrop(context, *this, amount));
+}
+
+Ref<Observable> Observable::inspect(ScriptExecutionContext& context, std::optional<InspectorUnion> inspectorUnion)
+{
+    if (!inspectorUnion)
+        return *this;
+
+    return create(createSubscriberCallbackInspect(context, *this, ObservableInspector { }));
+
+    // return WTF::switchOn(
+    //     inspectorUnion.value(),
+    //     [&](RefPtr<JSSubscriptionObserverCallback>& next) {
+    //         return create(createSubscriberCallbackInspect(context, *this, next));
+    //     },
+    //     [&](ObservableInspector& inspector) {
+    //         return create(createSubscriberCallbackInspect(context, *this, inspector));
+    //     }
+    // );
 }
 
 void Observable::first(ScriptExecutionContext& context, const SubscribeOptions& options, Ref<DeferredPromise>&& promise)
