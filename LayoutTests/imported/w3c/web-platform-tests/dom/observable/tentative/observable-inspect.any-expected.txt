@@ -1,3 +1,22 @@
+CONSOLE MESSAGE: Error: error from source
+CONSOLE MESSAGE: Error: error from inspect() next handler
+CONSOLE MESSAGE: Error: error from inspect() next handler
+CONSOLE MESSAGE: Error: error from inspect() error handler
+CONSOLE MESSAGE: Error: error from inspect() complete handler
+CONSOLE MESSAGE: Error: error from inspect() next handler
+CONSOLE MESSAGE: Error: error from do subscribe handler
 
+PASS inspect(): Provides a pre-subscription subscribe callback
 PASS inspect(): Provides a way to tap into the values and completions of the source observable using an observer
+PASS inspect(): Error handler does not stop error from being reported to the global, when subscriber does not pass error handler
+PASS inspect(): Provides a way to tap into the values and errors of the source observable using an observer. Errors are passed through
+PASS inspect(): ObserverCallback passed in
+FAIL inspect(): Throwing an error in the observer next handler is caught and sent to the error callback of the result observable assert_array_equals: lengths differ, expected array [1, object "Error: error from inspect() next handler"] length 2, got [1, 2, 3] length 3
+FAIL inspect(): Throwing an error in the observer error handler in inspect() is caught and sent to the error callback of the result observable assert_array_equals: expected property 0 to be object "Error: error from inspect() error handler" but got object "Error: error from source" (expected array [object "Error: error from inspect() error handler"] got [object "Error: error from source"])
+FAIL inspect(): Throwing an error in the observer complete handler is caught and sent to the error callback of the result observable assert_array_equals: expected property 3 to be object "Error: error from inspect() complete handler" but got "complete" (expected array [1, 2, 3, object "Error: error from inspect() complete handler"] got [1, 2, 3, "complete"])
+FAIL inspect(): Throwing an error in the next handler function in do should be caught and sent to the error callback of the result observable assert_array_equals: lengths differ, expected array [1, object "Error: error from inspect() next handler"] length 2, got [1, 2, 3] length 3
+FAIL inspect(): Errors thrown in subscribe() Inspector handler subscribe handler are caught and sent to error callback assert_array_equals: lengths differ, expected array ["error from do subscribe handler"] length 1, got [] length 0
+FAIL inspect(): Provides a way to tap into the moment a source observable is unsubscribed from assert_array_equals: lengths differ, expected array ["inspect() next 1", "result next 1", "inspect() next 2", "result next 2", "inspect() abort 1 abort reason", "source teardown 1"] length 6, got ["inspect() next 1", "result next 1", "inspect() next 2", "result next 2", "source teardown 1"] length 5
+PASS inspect(): Inspector abort() handler is not called if the source completes before the result is unsubscribed from
+FAIL inspect(): Errors thrown from inspect()'s abort() handler are caught and reported to the global, because the subscription is already closed by the time the handler runs self.on is not a function. (In 'self.on('error')', 'self.on' is undefined)
 

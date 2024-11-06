@@ -41,9 +41,9 @@ namespace WebCore {
 
 class InternalObserverInspect final : public InternalObserver {
 public:
-    static Ref<InternalObserverInspect> create(ScriptExecutionContext& context, Ref<Subscriber> subscriber, RefPtr<SubscriptionObserverCallback> next, RefPtr<SubscriptionObserverCallback> error, RefPtr<VoidCallback> complete, RefPtr<VoidCallback> subscribe, RefPtr<ObservableInspectorAbortCallback> abort)
+    static Ref<InternalObserverInspect> create(ScriptExecutionContext& context, Ref<Subscriber> subscriber, const ObservableInspector& inspector)
     {
-        Ref internalObserver = adoptRef(*new InternalObserverInspect(context, subscriber, next, error, complete, subscribe, abort));
+        Ref internalObserver = adoptRef(*new InternalObserverInspect(context, subscriber, inspector));
         internalObserver->suspendIfNeeded();
         return internalObserver;
     }
@@ -64,9 +64,27 @@ public:
                 return { };
             }
 
+            if (m_inspector.subscribe) {
+                auto* globalObject = protectedScriptExecutionContext()->globalObject();
+                ASSERT(globalObject);
+
+                Ref vm = globalObject->vm();
+                JSC::JSLockHolder lock(vm);
+                auto scope = DECLARE_CATCH_SCOPE(vm);
+
+                m_inspector.subscribe->handleEvent();
+
+                JSC::Exception* exception = scope.exception();
+                if (UNLIKELY(exception)) {
+                    scope.clearException();
+                    subscriber.error(exception->value());
+                    return { };
+                }
+            }
+
             SubscribeOptions options;
             options.signal = &subscriber.signal();
-            m_sourceObservable->subscribeInternal(*context, InternalObserverInspect::create(*context, subscriber, m_next, m_error, m_complete, m_subscribe, m_abort), options);
+            m_sourceObservable->subscribeInternal(*context, InternalObserverInspect::create(*context, subscriber, m_inspector), options);
 
             return { };
         }
@@ -77,30 +95,26 @@ public:
         SubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable> source, const ObservableInspector& inspector)
             : SubscriberCallback(&context)
             , m_sourceObservable(source)
-            , m_next(inspector.next)
-            , m_error(inspector.error)
-            , m_complete(inspector.complete)
-            , m_subscribe(inspector.subscribe)
-            , m_abort(inspector.abort)
+            , m_inspector(inspector)
         { }
 
         Ref<Observable> m_sourceObservable;
-
-        RefPtr<SubscriptionObserverCallback> m_next;
-        RefPtr<SubscriptionObserverCallback> m_error;
-        RefPtr<VoidCallback> m_complete;
-        RefPtr<VoidCallback> m_subscribe;
-        RefPtr<ObservableInspectorAbortCallback> m_abort;
+        ObservableInspector m_inspector;
     };
 
 private:
     void next(JSC::JSValue value) final
     {
-        if (m_next) {
-            auto exception = wrapWithExceptionSteps([&] {
-                m_next->handleEvent(value);
-            });
-            if (exception) {
+        if (m_inspector.next) {
+            Ref vm = protectedGlobalObjectVM();
+            JSC::JSLockHolder lock(vm);
+            auto scope = DECLARE_CATCH_SCOPE(vm);
+
+            m_inspector.next->handleEvent(value);
+
+            JSC::Exception* exception = scope.exception();
+            if (UNLIKELY(exception)) {
+                scope.clearException();
                 m_subscriber->error(exception->value());
                 return;
             }
@@ -113,11 +127,16 @@ private:
     {
         // removeAbortHandler();
 
-        if (m_error) {
-            auto exception = wrapWithExceptionSteps([&] {
-                m_error->handleEvent(value);
-            });
-            if (exception) {
+        if (m_inspector.error) {
+            Ref vm = protectedGlobalObjectVM();
+            JSC::JSLockHolder lock(vm);
+            auto scope = DECLARE_CATCH_SCOPE(vm);
+
+            m_inspector.error->handleEvent(value);
+
+            JSC::Exception* exception = scope.exception();
+            if (UNLIKELY(exception)) {
+                scope.clearException();
                 m_subscriber->error(exception->value());
                 return;
             }
@@ -132,11 +151,16 @@ private:
 
         // removeAbortHandler();
 
-        if (m_complete) {
-            auto exception = wrapWithExceptionSteps([&] {
-                m_complete->handleEvent();
-            });
-            if (exception) {
+        if (m_inspector.complete) {
+            Ref vm = protectedGlobalObjectVM();
+            JSC::JSLockHolder lock(vm);
+            auto scope = DECLARE_CATCH_SCOPE(vm);
+
+            m_inspector.complete->handleEvent();
+
+            JSC::Exception* exception = scope.exception();
+            if (UNLIKELY(exception)) {
+                scope.clearException();
                 m_subscriber->error(exception->value());
                 return;
             }
@@ -148,59 +172,31 @@ private:
     void visitAdditionalChildren(JSC::AbstractSlotVisitor& visitor) const final
     {
         m_subscriber->visitAdditionalChildren(visitor);
-        if (m_next)
-            m_next->visitJSFunction(visitor);
-        if (m_error)
-            m_error->visitJSFunction(visitor);
-        if (m_complete)
-            m_complete->visitJSFunction(visitor);
-        if (m_subscribe)
-            m_subscribe->visitJSFunction(visitor);
-        if (m_abort)
-            m_abort->visitJSFunction(visitor);
+        if (m_inspector.next)
+            m_inspector.next->visitJSFunction(visitor);
+        if (m_inspector.error)
+            m_inspector.error->visitJSFunction(visitor);
+        if (m_inspector.complete)
+            m_inspector.complete->visitJSFunction(visitor);
+        if (m_inspector.subscribe)
+            m_inspector.subscribe->visitJSFunction(visitor);
+        if (m_inspector.abort)
+            m_inspector.abort->visitJSFunction(visitor);
     }
 
     void visitAdditionalChildren(JSC::SlotVisitor& visitor) const final
     {
         m_subscriber->visitAdditionalChildren(visitor);
-        if (m_next)
-            m_next->visitJSFunction(visitor);
-        if (m_error)
-            m_error->visitJSFunction(visitor);
-        if (m_complete)
-            m_complete->visitJSFunction(visitor);
-        if (m_subscribe)
-            m_subscribe->visitJSFunction(visitor);
-        if (m_abort)
-            m_abort->visitJSFunction(visitor);
-    }
-
-    template<typename T>
-    constexpr JSC::Exception* wrapWithExceptionSteps(T&& fn) {
-        auto* globalObject = protectedScriptExecutionContext()->globalObject();
-        ASSERT(globalObject);
-
-        Ref vm = globalObject->vm();
-
-        {
-            JSC::JSLockHolder lock(vm);
-
-            // The exception is not reported, instead it is forwarded to the
-            // Subscriber's error handler.
-            // As such, a catch scope is declared so the error can be passed to
-            // any handlers of the Subscriber.
-            auto scope = DECLARE_CATCH_SCOPE(vm);
-
-            fn();
-
-            JSC::Exception* exception = scope.exception();
-            if (UNLIKELY(exception)) {
-                scope.clearException();
-                return exception;
-            }
-        }
-
-        return nullptr;
+        if (m_inspector.next)
+            m_inspector.next->visitJSFunction(visitor);
+        if (m_inspector.error)
+            m_inspector.error->visitJSFunction(visitor);
+        if (m_inspector.complete)
+            m_inspector.complete->visitJSFunction(visitor);
+        if (m_inspector.subscribe)
+            m_inspector.subscribe->visitJSFunction(visitor);
+        if (m_inspector.abort)
+            m_inspector.abort->visitJSFunction(visitor);
     }
 
     // void removeAbortHandler()
@@ -208,14 +204,17 @@ private:
     //     m_subscriber->protectedSignal()->removeAlgorithm(m_abortAlgorithmHandler);
     // }
 
-    InternalObserverInspect(ScriptExecutionContext& context, Ref<Subscriber> subscriber, RefPtr<SubscriptionObserverCallback> next, RefPtr<SubscriptionObserverCallback> error, RefPtr<VoidCallback> complete, RefPtr<VoidCallback> subscribe, RefPtr<ObservableInspectorAbortCallback> abort)
+    Ref<JSC::VM> protectedGlobalObjectVM() const
+    {
+        auto* globalObject = protectedScriptExecutionContext()->globalObject();
+        ASSERT(globalObject);
+        return globalObject->vm();
+    }
+
+    InternalObserverInspect(ScriptExecutionContext& context, Ref<Subscriber> subscriber, const ObservableInspector& inspector)
         : InternalObserver(context)
         , m_subscriber(subscriber)
-        , m_next(next)
-        , m_error(error)
-        , m_complete(complete)
-        , m_subscribe(subscribe)
-        , m_abort(abort)
+        , m_inspector(inspector)
     {
         // m_abortAlgorithmHandler = m_subscriber->protectedSignal()->addAlgorithm([this, protectedThis = Ref { *this }](JSC::JSValue reason) {
         //     // TODO: Do this outside this callback
@@ -235,19 +234,13 @@ private:
     }
 
     Ref<Subscriber> m_subscriber;
-
-    RefPtr<SubscriptionObserverCallback> m_next;
-    RefPtr<SubscriptionObserverCallback> m_error;
-    RefPtr<VoidCallback> m_complete;
-    RefPtr<VoidCallback> m_subscribe;
-    RefPtr<ObservableInspectorAbortCallback> m_abort;
+    ObservableInspector m_inspector;
     // uint32_t m_abortAlgorithmHandler;
 };
 
 Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable> observable, RefPtr<JSSubscriptionObserverCallback> next)
 {
-    (void)next;
-    return InternalObserverInspect::SubscriberCallbackInspect::create(context, observable, ObservableInspector { });
+    return InternalObserverInspect::SubscriberCallbackInspect::create(context, observable, ObservableInspector { .next = next });
 }
 
 Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable> observable, const ObservableInspector& inspector)
