@@ -34,7 +34,7 @@ class Observable;
 class ScriptExecutionContext;
 struct ObservableInspector;
 
-Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext&, Ref<Observable>, RefPtr<JSSubscriptionObserverCallback>);
-Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext&, Ref<Observable>, const ObservableInspector&);
+Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext&, Ref<Observable>&&, RefPtr<JSSubscriptionObserverCallback>);
+Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext&, Ref<Observable>&&, const ObservableInspector&);
 
 } // namespace WebCore
