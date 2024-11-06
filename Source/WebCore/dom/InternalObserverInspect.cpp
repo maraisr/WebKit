@@ -41,9 +41,9 @@ namespace WebCore {
 
 class InternalObserverInspect final : public InternalObserver {
 public:
-    static Ref<InternalObserverInspect> create(ScriptExecutionContext& context, Ref<Subscriber> subscriber, RefPtr<VoidCallback> complete)
+    static Ref<InternalObserverInspect> create(ScriptExecutionContext& context, Ref<Subscriber> subscriber, RefPtr<SubscriptionObserverCallback> next, RefPtr<SubscriptionObserverCallback> error, RefPtr<VoidCallback> complete, RefPtr<VoidCallback> subscribe, RefPtr<ObservableInspectorAbortCallback> abort)
     {
-        Ref internalObserver = adoptRef(*new InternalObserverInspect(context, subscriber, complete));
+        Ref internalObserver = adoptRef(*new InternalObserverInspect(context, subscriber, next, error, complete, subscribe, abort));
         internalObserver->suspendIfNeeded();
         return internalObserver;
     }
@@ -66,7 +66,7 @@ public:
 
             SubscribeOptions options;
             options.signal = &subscriber.signal();
-            m_sourceObservable->subscribeInternal(*context, InternalObserverInspect::create(*context, subscriber, m_complete), options);
+            m_sourceObservable->subscribeInternal(*context, InternalObserverInspect::create(*context, subscriber, m_next, m_error, m_complete, m_subscribe, m_abort), options);
 
             return { };
         }
@@ -96,39 +96,32 @@ public:
 private:
     void next(JSC::JSValue value) final
     {
-        // WTFLogAlways("InternalObserverInspect::next open");
-        // if (m_inspector.next) {
-        //     WTFLogAlways("InternalObserverInspect::next::beforeException open");
-        //     auto exception = wrapWithExceptionSteps([&] {
-        //         m_inspector.next->handleEvent(value);
-        //     });
-        //     WTFLogAlways("InternalObserverInspect::next::beforeException close");
-        //     if (exception) {
-        //         WTFLogAlways("InternalObserverInspect::next::beforeException EXCEPTION");
-        //         removeAbortHandler();
-        //         m_subscriber->error(exception->value());
-        //         return;
-        //     }
-        // }
+        if (m_next) {
+            auto exception = wrapWithExceptionSteps([&] {
+                m_next->handleEvent(value);
+            });
+            if (exception) {
+                m_subscriber->error(exception->value());
+                return;
+            }
+        }
 
-        WTFLogAlways("InternalObserverInspect::protectedSubscriber->next()");
         m_subscriber->next(value);
-        WTFLogAlways("InternalObserverInspect::next close");
     }
 
     void error(JSC::JSValue value) final
     {
         // removeAbortHandler();
 
-        // if (m_inspector.error) {
-        //     auto exception = wrapWithExceptionSteps([&] {
-        //         m_inspector.error->handleEvent(value);
-        //     });
-        //     if (exception) {
-        //         m_subscriber->error(exception->value());
-        //         return;
-        //     }
-        // }
+        if (m_error) {
+            auto exception = wrapWithExceptionSteps([&] {
+                m_error->handleEvent(value);
+            });
+            if (exception) {
+                m_subscriber->error(exception->value());
+                return;
+            }
+        }
 
         m_subscriber->error(value);
     }
@@ -143,7 +136,6 @@ private:
             auto exception = wrapWithExceptionSteps([&] {
                 m_complete->handleEvent();
             });
-
             if (exception) {
                 m_subscriber->error(exception->value());
                 return;
@@ -156,31 +148,31 @@ private:
     void visitAdditionalChildren(JSC::AbstractSlotVisitor& visitor) const final
     {
         m_subscriber->visitAdditionalChildren(visitor);
-        // if (m_next)
-        //     m_next->visitJSFunction(visitor);
-        // if (m_error)
-        //     m_error->visitJSFunction(visitor);
+        if (m_next)
+            m_next->visitJSFunction(visitor);
+        if (m_error)
+            m_error->visitJSFunction(visitor);
         if (m_complete)
             m_complete->visitJSFunction(visitor);
-        // if (m_subscribe)
-        //     m_subscribe->visitJSFunction(visitor);
-        // if (m_abort)
-        //     m_abort->visitJSFunction(visitor);
+        if (m_subscribe)
+            m_subscribe->visitJSFunction(visitor);
+        if (m_abort)
+            m_abort->visitJSFunction(visitor);
     }
 
     void visitAdditionalChildren(JSC::SlotVisitor& visitor) const final
     {
         m_subscriber->visitAdditionalChildren(visitor);
-        // if (m_next)
-        //     m_next->visitJSFunction(visitor);
-        // if (m_error)
-        //     m_error->visitJSFunction(visitor);
+        if (m_next)
+            m_next->visitJSFunction(visitor);
+        if (m_error)
+            m_error->visitJSFunction(visitor);
         if (m_complete)
             m_complete->visitJSFunction(visitor);
-        // if (m_subscribe)
-        //     m_subscribe->visitJSFunction(visitor);
-        // if (m_abort)
-        //     m_abort->visitJSFunction(visitor);
+        if (m_subscribe)
+            m_subscribe->visitJSFunction(visitor);
+        if (m_abort)
+            m_abort->visitJSFunction(visitor);
     }
 
     template<typename T>
@@ -216,14 +208,14 @@ private:
     //     m_subscriber->protectedSignal()->removeAlgorithm(m_abortAlgorithmHandler);
     // }
 
-    InternalObserverInspect(ScriptExecutionContext& context, Ref<Subscriber> subscriber, RefPtr<VoidCallback> complete)
+    InternalObserverInspect(ScriptExecutionContext& context, Ref<Subscriber> subscriber, RefPtr<SubscriptionObserverCallback> next, RefPtr<SubscriptionObserverCallback> error, RefPtr<VoidCallback> complete, RefPtr<VoidCallback> subscribe, RefPtr<ObservableInspectorAbortCallback> abort)
         : InternalObserver(context)
         , m_subscriber(subscriber)
-        // , m_next(inspector.next)
-        // , m_error(inspector.error)
+        , m_next(next)
+        , m_error(error)
         , m_complete(complete)
-        // , m_subscribe(inspector.subscribe)
-        // , m_abort(inspector.abort)
+        , m_subscribe(subscribe)
+        , m_abort(abort)
     {
         // m_abortAlgorithmHandler = m_subscriber->protectedSignal()->addAlgorithm([this, protectedThis = Ref { *this }](JSC::JSValue reason) {
         //     // TODO: Do this outside this callback
@@ -244,11 +236,11 @@ private:
 
     Ref<Subscriber> m_subscriber;
 
-    // RefPtr<SubscriptionObserverCallback> m_next;
-    // RefPtr<SubscriptionObserverCallback> m_error;
+    RefPtr<SubscriptionObserverCallback> m_next;
+    RefPtr<SubscriptionObserverCallback> m_error;
     RefPtr<VoidCallback> m_complete;
-    // RefPtr<VoidCallback> m_subscribe;
-    // RefPtr<ObservableInspectorAbortCallback> m_abort;
+    RefPtr<VoidCallback> m_subscribe;
+    RefPtr<ObservableInspectorAbortCallback> m_abort;
     // uint32_t m_abortAlgorithmHandler;
 };
 
