@@ -64,6 +64,7 @@ public:
                 return { };
             }
 
+            WTFLogAlways("InternalObserverInspect::handleEvent open");
             if (m_inspector.subscribe) {
                 auto* globalObject = protectedScriptExecutionContext()->globalObject();
                 ASSERT(globalObject);
@@ -72,19 +73,27 @@ public:
                 JSC::JSLockHolder lock(vm);
                 auto scope = DECLARE_CATCH_SCOPE(vm);
 
+                WTFLogAlways(".subscribe open");
                 m_inspector.subscribe->handleEvent();
+                WTFLogAlways(".subscribe close");
 
                 JSC::Exception* exception = scope.exception();
                 if (UNLIKELY(exception)) {
+                    WTFLogAlways(".subscribe EXCEPTION open");
                     scope.clearException();
                     subscriber.error(exception->value());
+                    WTFLogAlways(".subscribe EXCEPTION close");
                     return { };
                 }
             }
 
             SubscribeOptions options;
             options.signal = &subscriber.signal();
+            WTFLogAlways("subscribeInternal open");
             m_sourceObservable->subscribeInternal(*context, InternalObserverInspect::create(*context, subscriber, m_inspector), options);
+            WTFLogAlways("subscribeInternal close");
+
+            WTFLogAlways("InternalObserverInspect::handleEvent close");
 
             return { };
         }
@@ -125,7 +134,7 @@ private:
 
     void error(JSC::JSValue value) final
     {
-        // removeAbortHandler();
+        removeAbortHandler();
 
         if (m_inspector.error) {
             Ref vm = protectedGlobalObjectVM();
@@ -149,7 +158,7 @@ private:
     {
         InternalObserver::complete();
 
-        // removeAbortHandler();
+        removeAbortHandler();
 
         if (m_inspector.complete) {
             Ref vm = protectedGlobalObjectVM();
@@ -199,10 +208,14 @@ private:
             m_inspector.abort->visitJSFunction(visitor);
     }
 
-    // void removeAbortHandler()
-    // {
-    //     m_subscriber->protectedSignal()->removeAlgorithm(m_abortAlgorithmHandler);
-    // }
+    void removeAbortHandler()
+    {
+        if (!m_abortAlgorithmHandler)
+            return;
+
+        auto handle = std::exchange(m_abortAlgorithmHandler, std::nullopt);
+        m_subscriber->protectedSignal()->removeAlgorithm(*handle);
+    }
 
     Ref<JSC::VM> protectedGlobalObjectVM() const
     {
@@ -216,26 +229,29 @@ private:
         , m_subscriber(subscriber)
         , m_inspector(inspector)
     {
-        // m_abortAlgorithmHandler = m_subscriber->protectedSignal()->addAlgorithm([this, protectedThis = Ref { *this }](JSC::JSValue reason) {
-        //     // TODO: Do this outside this callback
-        //     if (!m_inspector.abort) return;
+        if (m_inspector.abort) {
+            m_abortAlgorithmHandler = m_subscriber->protectedSignal()->addAlgorithm([&](JSC::JSValue reason) {
+                auto* globalObject = protectedScriptExecutionContext()->globalObject();
+                ASSERT(globalObject);
 
-        //     auto exception = wrapWithExceptionSteps([&] {
-        //         m_inspector.abort->handleEvent(reason);
-        //     });
+                Ref vm = globalObject->vm();
+                JSC::JSLockHolder lock(vm);
+                auto scope = DECLARE_CATCH_SCOPE(vm);
 
-        //     if (exception) {
-        //         auto* globalObject = protectedScriptExecutionContext()->globalObject();
-        //         ASSERT(globalObject);
+                m_inspector.abort->handleEvent(reason);
 
-        //         reportException(globalObject, exception);
-        //     }
-        // });
+                JSC::Exception* exception = scope.exception();
+                if (UNLIKELY(exception)) {
+                    scope.clearException();
+                    reportException(globalObject, exception);
+                }
+            });
+        }
     }
 
     Ref<Subscriber> m_subscriber;
     ObservableInspector m_inspector;
-    // uint32_t m_abortAlgorithmHandler;
+    std::optional<uint32_t> m_abortAlgorithmHandler { };
 };
 
 Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable> observable, RefPtr<JSSubscriptionObserverCallback> next)
