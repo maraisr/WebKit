@@ -40,9 +40,9 @@ namespace WebCore {
 
 class InternalObserverInspect final : public InternalObserver {
 public:
-    static Ref<InternalObserverInspect> create(ScriptExecutionContext& context, Ref<Subscriber> subscriber)
+    static Ref<InternalObserverInspect> create(ScriptExecutionContext& context, Ref<Subscriber> subscriber, const ObservableInspector& inspector)
     {
-        Ref internalObserver = adoptRef(*new InternalObserverInspect(context, subscriber));
+        Ref internalObserver = adoptRef(*new InternalObserverInspect(context, subscriber, inspector));
         internalObserver->suspendIfNeeded();
         return internalObserver;
     }
@@ -51,8 +51,7 @@ public:
     public:
         static Ref<SubscriberCallbackInspect> create(ScriptExecutionContext& context, Ref<Observable>&& source, const ObservableInspector& inspector)
         {
-            (void)inspector;
-            return adoptRef(*new InternalObserverInspect::SubscriberCallbackInspect(context, WTFMove(source)));
+            return adoptRef(*new InternalObserverInspect::SubscriberCallbackInspect(context, WTFMove(source), inspector));
         }
 
         CallbackResult<void> handleEvent(Subscriber& subscriber) final
@@ -66,22 +65,22 @@ public:
 
             SubscribeOptions options;
             options.signal = &subscriber.signal();
-            m_sourceObservable->subscribeInternal(*context, InternalObserverInspect::create(*context, subscriber), options);
+            m_sourceObservable->subscribeInternal(*context, InternalObserverInspect::create(*context, subscriber, m_inspector), options);
 
             return { };
         }
 
     private:
-        SubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable>&& source)
-            : SubscriberCallback(&context)
-            , m_sourceObservable(WTFMove(source))
-            // , m_inspector(inspector)
-        { }
-
         bool hasCallback() const final { return true; }
 
+        SubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable>&& source, const ObservableInspector& inspector)
+            : SubscriberCallback(&context)
+            , m_sourceObservable(WTFMove(source))
+            , m_inspector(inspector)
+        { }
+
         Ref<Observable> m_sourceObservable;
-        // ObservableInspector m_inspector;
+        const ObservableInspector& m_inspector;
     };
 
 private:
@@ -128,17 +127,37 @@ private:
     {
         InternalObserver::complete();
 
+        WTFLogAlways("complete complete pointer: %p", m_inspector.complete.get());
+
         // removeAbortHandler();
 
-        // if (m_inspector.complete) {
-        //     auto exception = wrapWithExceptionSteps([&] {
-        //         m_inspector.complete->handleEvent();
-        //     });
-        //     if (exception) {
-        //         m_subscriber->error(exception->value());
-        //         return;
-        //     }
-        // }
+        if (m_inspector.complete) {
+            auto* globalObject = protectedScriptExecutionContext()->globalObject();
+            ASSERT(globalObject);
+
+            Ref vm = globalObject->vm();
+
+            {
+                JSC::JSLockHolder lock(vm);
+
+                // The exception is not reported, instead it is forwarded to the
+                // Subscriber's error handler.
+                // As such, we `[RethrowsException]` and here a
+                // catch scope is declared so the error can be passed to any promise
+                // rejection handlers and abort handlers.
+                auto scope = DECLARE_CATCH_SCOPE(vm);
+
+                WTFLogAlways("before lambda");
+                // m_inspector.complete->handleEvent();
+
+                JSC::Exception* exception = scope.exception();
+                if (UNLIKELY(exception)) {
+                    scope.clearException();
+                    m_subscriber->error(exception->value());
+                    return;
+                }
+            }
+        }
 
         m_subscriber->complete();
     }
@@ -188,10 +207,10 @@ private:
     //     m_subscriber->protectedSignal()->removeAlgorithm(m_abortAlgorithmHandler);
     // }
 
-    InternalObserverInspect(ScriptExecutionContext& context, Ref<Subscriber> subscriber)
+    InternalObserverInspect(ScriptExecutionContext& context, Ref<Subscriber> subscriber, const ObservableInspector& inspector)
         : InternalObserver(context)
         , m_subscriber(subscriber)
-        // , m_inspector(inspector)
+        , m_inspector(inspector)
     {
         // m_abortAlgorithmHandler = m_subscriber->protectedSignal()->addAlgorithm([this, protectedThis = Ref { *this }](JSC::JSValue reason) {
         //     // TODO: Do this outside this callback
@@ -211,7 +230,7 @@ private:
     }
 
     Ref<Subscriber> m_subscriber;
-    // ObservableInspector m_inspector;
+    const ObservableInspector& m_inspector;
     // uint32_t m_abortAlgorithmHandler;
 };
 

@@ -132,17 +132,15 @@ Ref<Observable> Observable::inspect(ScriptExecutionContext& context, std::option
     if (!inspectorUnion)
         return *this;
 
-    return create(createSubscriberCallbackInspect(context, *this, ObservableInspector { }));
-
-    // return WTF::switchOn(
-    //     inspectorUnion.value(),
-    //     [&](RefPtr<JSSubscriptionObserverCallback>& next) {
-    //         return create(createSubscriberCallbackInspect(context, *this, next));
-    //     },
-    //     [&](ObservableInspector& inspector) {
-    //         return create(createSubscriberCallbackInspect(context, *this, inspector));
-    //     }
-    // );
+    return WTF::switchOn(
+        inspectorUnion.value(),
+        [&](RefPtr<JSSubscriptionObserverCallback>& next) {
+            return create(createSubscriberCallbackInspect(context, *this, next));
+        },
+        [&](ObservableInspector& inspector) {
+            return create(createSubscriberCallbackInspect(context, *this, inspector));
+        }
+    );
 }
 
 void Observable::first(ScriptExecutionContext& context, const SubscribeOptions& options, Ref<DeferredPromise>&& promise)
