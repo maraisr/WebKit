@@ -1,3 +1,3 @@
 
-FAIL inspect(): Provides a way to tap into the values and completions of the source observable using an observer assert_array_equals: lengths differ, expected array [1, 2, 3, "complete", 1, 2, 3, "complete"] length 8, got [] length 0
+FAIL inspect(): Provides a way to tap into the values and completions of the source observable using an observer assert_array_equals: lengths differ, expected array [1, 2, 3, "complete", 1, 2, 3, "complete"] length 8, got ["complete", "complete"] length 2
 

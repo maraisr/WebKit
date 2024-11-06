@@ -30,6 +30,7 @@
 #include "JSSubscriptionObserverCallback.h"
 #include "Observable.h"
 #include "ObservableInspector.h"
+#include "ObservableInspectorAbortCallback.h"
 #include "ScriptExecutionContext.h"
 #include "SubscribeOptions.h"
 #include "Subscriber.h"
@@ -40,18 +41,18 @@ namespace WebCore {
 
 class InternalObserverInspect final : public InternalObserver {
 public:
-    static Ref<InternalObserverInspect> create(ScriptExecutionContext& context, Ref<Subscriber> subscriber, const ObservableInspector& inspector)
+    static Ref<InternalObserverInspect> create(ScriptExecutionContext& context, Ref<Subscriber> subscriber, RefPtr<VoidCallback> complete)
     {
-        Ref internalObserver = adoptRef(*new InternalObserverInspect(context, subscriber, inspector));
+        Ref internalObserver = adoptRef(*new InternalObserverInspect(context, subscriber, complete));
         internalObserver->suspendIfNeeded();
         return internalObserver;
     }
 
     class SubscriberCallbackInspect final : public SubscriberCallback {
     public:
-        static Ref<SubscriberCallbackInspect> create(ScriptExecutionContext& context, Ref<Observable>&& source, const ObservableInspector& inspector)
+        static Ref<SubscriberCallbackInspect> create(ScriptExecutionContext& context, Ref<Observable> source, const ObservableInspector& inspector)
         {
-            return adoptRef(*new InternalObserverInspect::SubscriberCallbackInspect(context, WTFMove(source), inspector));
+            return adoptRef(*new InternalObserverInspect::SubscriberCallbackInspect(context, source, inspector));
         }
 
         CallbackResult<void> handleEvent(Subscriber& subscriber) final
@@ -65,7 +66,7 @@ public:
 
             SubscribeOptions options;
             options.signal = &subscriber.signal();
-            m_sourceObservable->subscribeInternal(*context, InternalObserverInspect::create(*context, subscriber, m_inspector), options);
+            m_sourceObservable->subscribeInternal(*context, InternalObserverInspect::create(*context, subscriber, m_complete), options);
 
             return { };
         }
@@ -73,14 +74,23 @@ public:
     private:
         bool hasCallback() const final { return true; }
 
-        SubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable>&& source, const ObservableInspector& inspector)
+        SubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable> source, const ObservableInspector& inspector)
             : SubscriberCallback(&context)
-            , m_sourceObservable(WTFMove(source))
-            , m_inspector(inspector)
+            , m_sourceObservable(source)
+            , m_next(inspector.next)
+            , m_error(inspector.error)
+            , m_complete(inspector.complete)
+            , m_subscribe(inspector.subscribe)
+            , m_abort(inspector.abort)
         { }
 
         Ref<Observable> m_sourceObservable;
-        const ObservableInspector& m_inspector;
+
+        RefPtr<SubscriptionObserverCallback> m_next;
+        RefPtr<SubscriptionObserverCallback> m_error;
+        RefPtr<VoidCallback> m_complete;
+        RefPtr<VoidCallback> m_subscribe;
+        RefPtr<ObservableInspectorAbortCallback> m_abort;
     };
 
 private:
@@ -127,35 +137,16 @@ private:
     {
         InternalObserver::complete();
 
-        WTFLogAlways("complete complete pointer: %p", m_inspector.complete.get());
-
         // removeAbortHandler();
 
-        if (m_inspector.complete) {
-            auto* globalObject = protectedScriptExecutionContext()->globalObject();
-            ASSERT(globalObject);
+        if (m_complete) {
+            auto exception = wrapWithExceptionSteps([&] {
+                m_complete->handleEvent();
+            });
 
-            Ref vm = globalObject->vm();
-
-            {
-                JSC::JSLockHolder lock(vm);
-
-                // The exception is not reported, instead it is forwarded to the
-                // Subscriber's error handler.
-                // As such, we `[RethrowsException]` and here a
-                // catch scope is declared so the error can be passed to any promise
-                // rejection handlers and abort handlers.
-                auto scope = DECLARE_CATCH_SCOPE(vm);
-
-                WTFLogAlways("before lambda");
-                // m_inspector.complete->handleEvent();
-
-                JSC::Exception* exception = scope.exception();
-                if (UNLIKELY(exception)) {
-                    scope.clearException();
-                    m_subscriber->error(exception->value());
-                    return;
-                }
+            if (exception) {
+                m_subscriber->error(exception->value());
+                return;
             }
         }
 
@@ -165,52 +156,74 @@ private:
     void visitAdditionalChildren(JSC::AbstractSlotVisitor& visitor) const final
     {
         m_subscriber->visitAdditionalChildren(visitor);
+        // if (m_next)
+        //     m_next->visitJSFunction(visitor);
+        // if (m_error)
+        //     m_error->visitJSFunction(visitor);
+        if (m_complete)
+            m_complete->visitJSFunction(visitor);
+        // if (m_subscribe)
+        //     m_subscribe->visitJSFunction(visitor);
+        // if (m_abort)
+        //     m_abort->visitJSFunction(visitor);
     }
 
     void visitAdditionalChildren(JSC::SlotVisitor& visitor) const final
     {
         m_subscriber->visitAdditionalChildren(visitor);
+        // if (m_next)
+        //     m_next->visitJSFunction(visitor);
+        // if (m_error)
+        //     m_error->visitJSFunction(visitor);
+        if (m_complete)
+            m_complete->visitJSFunction(visitor);
+        // if (m_subscribe)
+        //     m_subscribe->visitJSFunction(visitor);
+        // if (m_abort)
+        //     m_abort->visitJSFunction(visitor);
     }
 
-    // template<typename T>
-    // constexpr JSC::Exception* wrapWithExceptionSteps(T&& fn) {
-    //     auto* globalObject = protectedScriptExecutionContext()->globalObject();
-    //     ASSERT(globalObject);
+    template<typename T>
+    constexpr JSC::Exception* wrapWithExceptionSteps(T&& fn) {
+        auto* globalObject = protectedScriptExecutionContext()->globalObject();
+        ASSERT(globalObject);
 
-    //     Ref vm = globalObject->vm();
+        Ref vm = globalObject->vm();
 
-    //     {
-    //         JSC::JSLockHolder lock(vm);
+        {
+            JSC::JSLockHolder lock(vm);
 
-    //         // The exception is not reported, instead it is forwarded to the
-    //         // Subscriber's error handler.
-    //         // As such, we `[RethrowsException]` and here a
-    //         // catch scope is declared so the error can be passed to any promise
-    //         // rejection handlers and abort handlers.
-    //         auto scope = DECLARE_CATCH_SCOPE(vm);
+            // The exception is not reported, instead it is forwarded to the
+            // Subscriber's error handler.
+            // As such, a catch scope is declared so the error can be passed to
+            // any handlers of the Subscriber.
+            auto scope = DECLARE_CATCH_SCOPE(vm);
 
-    //         WTFLogAlways("before lambda");
-    //         fn();
+            fn();
 
-    //         JSC::Exception* exception = scope.exception();
-    //         if (UNLIKELY(exception)) {
-    //             scope.clearException();
-    //             return exception;
-    //         }
-    //     }
+            JSC::Exception* exception = scope.exception();
+            if (UNLIKELY(exception)) {
+                scope.clearException();
+                return exception;
+            }
+        }
 
-    //     return nullptr;
-    // }
+        return nullptr;
+    }
 
     // void removeAbortHandler()
     // {
     //     m_subscriber->protectedSignal()->removeAlgorithm(m_abortAlgorithmHandler);
     // }
 
-    InternalObserverInspect(ScriptExecutionContext& context, Ref<Subscriber> subscriber, const ObservableInspector& inspector)
+    InternalObserverInspect(ScriptExecutionContext& context, Ref<Subscriber> subscriber, RefPtr<VoidCallback> complete)
         : InternalObserver(context)
         , m_subscriber(subscriber)
-        , m_inspector(inspector)
+        // , m_next(inspector.next)
+        // , m_error(inspector.error)
+        , m_complete(complete)
+        // , m_subscribe(inspector.subscribe)
+        // , m_abort(inspector.abort)
     {
         // m_abortAlgorithmHandler = m_subscriber->protectedSignal()->addAlgorithm([this, protectedThis = Ref { *this }](JSC::JSValue reason) {
         //     // TODO: Do this outside this callback
@@ -230,19 +243,24 @@ private:
     }
 
     Ref<Subscriber> m_subscriber;
-    const ObservableInspector& m_inspector;
+
+    // RefPtr<SubscriptionObserverCallback> m_next;
+    // RefPtr<SubscriptionObserverCallback> m_error;
+    RefPtr<VoidCallback> m_complete;
+    // RefPtr<VoidCallback> m_subscribe;
+    // RefPtr<ObservableInspectorAbortCallback> m_abort;
     // uint32_t m_abortAlgorithmHandler;
 };
 
-Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable>&& observable, RefPtr<JSSubscriptionObserverCallback> next)
+Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable> observable, RefPtr<JSSubscriptionObserverCallback> next)
 {
     (void)next;
-    return InternalObserverInspect::SubscriberCallbackInspect::create(context, WTFMove(observable), ObservableInspector { });
+    return InternalObserverInspect::SubscriberCallbackInspect::create(context, observable, ObservableInspector { });
 }
 
-Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable>&& observable, const ObservableInspector& inspector)
+Ref<SubscriberCallback> createSubscriberCallbackInspect(ScriptExecutionContext& context, Ref<Observable> observable, const ObservableInspector& inspector)
 {
-    return InternalObserverInspect::SubscriberCallbackInspect::create(context, WTFMove(observable), inspector);
+    return InternalObserverInspect::SubscriberCallbackInspect::create(context, observable, inspector);
 }
 
 } // namespace WebCore

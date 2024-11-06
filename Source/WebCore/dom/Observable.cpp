@@ -46,7 +46,6 @@
 #include "JSSubscriptionObserverCallback.h"
 #include "MapperCallback.h"
 #include "ObservableInspector.h"
-#include "ObservableInspectorAbortCallback.h" // TODO: REMOVE THIS SOMEWHERE ELSE
 #include "PredicateCallback.h"
 #include "SubscribeOptions.h"
 #include "Subscriber.h"
