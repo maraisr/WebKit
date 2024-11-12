@@ -70,20 +70,33 @@ public:
                 ASSERT(globalObject);
 
                 Ref vm = globalObject->vm();
-                JSC::JSLockHolder lock(vm);
-                auto scope = DECLARE_CATCH_SCOPE(vm);
 
-                WTFLogAlways(".subscribe open");
-                m_inspector.subscribe->handleEvent();
-                WTFLogAlways(".subscribe close");
+                {
+                    JSC::JSLockHolder lock(vm);
+                    auto scope = DECLARE_CATCH_SCOPE(vm);
 
-                JSC::Exception* exception = scope.exception();
-                if (UNLIKELY(exception)) {
-                    WTFLogAlways(".subscribe EXCEPTION open");
-                    scope.clearException();
-                    subscriber.error(exception->value());
-                    WTFLogAlways(".subscribe EXCEPTION close");
-                    return { };
+                    WTFLogAlways(".subscribe open");
+                    auto result = m_inspector.subscribe->handleEvent();
+                    if (result.type() == CallbackResultType::Success) {
+                        WTFLogAlways(".subscribe success");
+                    }
+                    if (result.type() == CallbackResultType::ExceptionThrown) {
+                        WTFLogAlways(".subscribe ExceptionThrown");
+                    }
+                    if (result.type() == CallbackResultType::UnableToExecute) {
+                        WTFLogAlways(".subscribe UnableToExecute");
+                    }
+                    WTFLogAlways(".subscribe close");
+
+                    JSC::Exception* exception = scope.exception();
+                    WTFLogAlways(".subscribe exception ptr %p", exception);
+                    if (UNLIKELY(exception)) {
+                        WTFLogAlways(".subscribe EXCEPTION open");
+                        scope.clearException();
+                        subscriber.error(exception->value());
+                        WTFLogAlways(".subscribe EXCEPTION close");
+                        return { };
+                    }
                 }
             }
 
