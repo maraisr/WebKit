@@ -30,6 +30,7 @@
 #include "Document.h"
 #include "Exception.h"
 #include "ExceptionCode.h"
+#include "InternalObserverCatch.h"
 #include "InternalObserverDrop.h"
 #include "InternalObserverEvery.h"
 #include "InternalObserverFilter.h"
@@ -44,6 +45,7 @@
 #include "InternalObserverTake.h"
 #include "JSDOMPromiseDeferred.h"
 #include "JSSubscriptionObserverCallback.h"
+#include "CatchCallback.h"
 #include "MapperCallback.h"
 #include "ObservableInspector.h"
 #include "PredicateCallback.h"
@@ -137,6 +139,11 @@ Ref<Observable> Observable::inspect(ScriptExecutionContext& context, std::option
             return create(createSubscriberCallbackInspect(context, *this, WTFMove(inspector)));
         }
     );
+}
+
+Ref<Observable> catch(ScriptExecutionContext& context, Ref<CatchCallback>&& callback)
+{
+    return createSubscriberCallbackCatch(context, *this, WTFMove(callback));
 }
 
 void Observable::first(ScriptExecutionContext& context, const SubscribeOptions& options, Ref<DeferredPromise>&& promise)

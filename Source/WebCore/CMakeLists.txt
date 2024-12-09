@@ -1083,6 +1083,7 @@ set(WebCore_NON_SVG_IDL_FILES
     dom/CustomElementRegistry.idl
     dom/CustomEvent.idl
     dom/CustomStateSet.idl
+    dom/CatchCallback.idl
     dom/DOMException.idl
     dom/DOMImplementation.idl
     dom/DOMPoint.idl

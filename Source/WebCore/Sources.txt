@@ -1277,6 +1277,7 @@ dom/InlineClassicScript.cpp
 dom/InlineStyleSheetOwner.cpp
 dom/InputEvent.cpp
 dom/InternalObserver.cpp
+dom/InternalObserverCatch.cpp
 dom/InternalObserverDrop.cpp
 dom/InternalObserverEvery.cpp
 dom/InternalObserverFilter.cpp
@@ -3667,6 +3668,7 @@ JSCustomEffectCallback.cpp
 JSCustomElementRegistry.cpp
 JSCustomEvent.cpp
 JSCustomStateSet.cpp
+JSCatchCallback.cpp
 JSDOMApplicationCache.cpp
 JSDOMAudioSession.cpp
 JSDOMCSSCustomPropertyDescriptor.cpp

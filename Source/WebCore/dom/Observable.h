@@ -33,6 +33,7 @@
 
 namespace WebCore {
 
+class CatchCallback;
 class DeferredPromise;
 class InternalObserver;
 class JSSubscriptionObserverCallback;
@@ -63,6 +64,7 @@ public:
     Ref<Observable> take(ScriptExecutionContext&, uint64_t);
     Ref<Observable> drop(ScriptExecutionContext&, uint64_t);
     Ref<Observable> inspect(ScriptExecutionContext&, std::optional<InspectorUnion>&&);
+    Ref<Observable> catch(ScriptExecutionContext&, Ref<CatchCallback>&&);
 
     // Promise-returning operators.
 

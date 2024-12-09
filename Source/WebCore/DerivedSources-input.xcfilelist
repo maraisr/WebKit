@@ -1399,6 +1399,7 @@ $(PROJECT_DIR)/dom/CreateScriptURLCallback.idl
 $(PROJECT_DIR)/dom/CustomElementRegistry.idl
 $(PROJECT_DIR)/dom/CustomEvent.idl
 $(PROJECT_DIR)/dom/CustomStateSet.idl
+$(PROJECT_DIR)/dom/CatchCallback.idl
 $(PROJECT_DIR)/dom/DOMException.idl
 $(PROJECT_DIR)/dom/DOMImplementation.idl
 $(PROJECT_DIR)/dom/DOMPoint.idl
