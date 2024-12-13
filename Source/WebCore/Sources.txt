@@ -1291,6 +1291,7 @@ dom/InternalObserverMap.cpp
 dom/InternalObserverReduce.cpp
 dom/InternalObserverSome.cpp
 dom/InternalObserverTake.cpp
+dom/InternalObserverToArray.cpp
 dom/KeyboardEvent.cpp
 dom/LiveNodeList.cpp
 dom/LoadableClassicScript.cpp
