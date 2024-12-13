@@ -65,11 +65,11 @@ EventTarget* JSEventTarget::toWrapped(VM&, JSValue value)
 JSEventTargetWrapper jsEventTargetCast(VM& vm, JSValue thisValue)
 {
     if (auto* target = jsDynamicCast<JSEventTarget*>(thisValue))
-        return { target->wrapped(), *target };
+        return { target->wrapped(), *target, target->globalObject() };
     if (auto* window = toJSDOMGlobalObject<JSDOMWindow>(vm, thisValue))
-        return { window->wrapped(), *window };
+        return { window->wrapped(), *window, window };
     if (auto* scope = toJSDOMGlobalObject<JSWorkerGlobalScope>(vm, thisValue))
-        return { scope->wrapped(), *scope };
+        return { scope->wrapped(), *scope, scope };
     return { };
 }
 

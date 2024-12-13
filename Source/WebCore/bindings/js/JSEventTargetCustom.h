@@ -37,9 +37,10 @@ class JSEventTargetWrapper {
 public:
     JSEventTargetWrapper() = default;
 
-    JSEventTargetWrapper(EventTarget& wrapped, JSC::JSObject& wrapper)
+    JSEventTargetWrapper(EventTarget& wrapped, JSC::JSObject& wrapper, JSDOMGlobalObject* globalObject)
         : m_wrapped(&wrapped)
         , m_wrapper(&wrapper)
+        , m_globalObject(globalObject)
     { }
 
     bool isNull() const { return !m_wrapped; }
@@ -47,9 +48,12 @@ public:
 
     operator JSC::JSObject&() { ASSERT(m_wrapper); return *m_wrapper; }
 
+    JSDOMGlobalObject* globalObject() const { return m_globalObject; }
+
 private:
     EventTarget* m_wrapped { nullptr };
     JSC::JSObject* m_wrapper { nullptr };
+    JSDOMGlobalObject* m_globalObject { nullptr };
 };
 
 JSEventTargetWrapper jsEventTargetCast(JSC::VM&, JSC::JSValue thisValue);
