@@ -1152,6 +1152,7 @@ JS_BINDING_IDLS := \
     $(WebCore)/dom/EventListenerOptions.idl \
     $(WebCore)/dom/EventModifierInit.idl \
     $(WebCore)/dom/EventTarget.idl \
+    $(WebCore)/dom/EventTarget+Observable.idl \
     $(WebCore)/dom/FocusEvent.idl \
     $(WebCore)/dom/FocusOptions.idl \
     $(WebCore)/dom/FormDataEvent.idl \
@@ -1188,6 +1189,7 @@ JS_BINDING_IDLS := \
     $(WebCore)/dom/NonElementParentNode.idl \
     $(WebCore)/dom/OverflowEvent.idl \
     $(WebCore)/dom/Observable.idl \
+    $(WebCore)/dom/ObservableEventListenerOptions.idl \
     $(WebCore)/dom/ObservableInspector.idl \
     $(WebCore)/dom/ObservableInspectorAbortCallback.idl \
     $(WebCore)/dom/PageRevealEvent.idl \
