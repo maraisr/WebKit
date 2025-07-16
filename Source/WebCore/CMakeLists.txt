@@ -1170,6 +1170,7 @@ set(WebCore_NON_SVG_IDL_FILES
     dom/EventInit.idl
     dom/EventListenerOptions.idl
     dom/EventModifierInit.idl
+    dom/EventTarget+Observable.idl
     dom/EventTarget.idl
     dom/FocusEvent.idl
     dom/FocusOptions.idl
@@ -1206,6 +1207,7 @@ set(WebCore_NON_SVG_IDL_FILES
     dom/NonDocumentTypeChildNode.idl
     dom/NonElementParentNode.idl
     dom/Observable.idl
+    dom/ObservableEventListenerOptions.idl
     dom/ObservableInspector.idl
     dom/ObservableInspectorAbortCallback.idl
     dom/OverflowEvent.idl
