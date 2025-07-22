@@ -26,11 +26,14 @@
 #pragma once
 
 #include "ActiveDOMObject.h"
+#include "ScriptExecutionContext.h"
+#include <JavaScriptCore/JSGlobalObject.h>
 #include <wtf/RefCounted.h>
 
 namespace JSC {
 class AbstractSlotVisitor;
 class JSValue;
+class VM;
 } // namespace JSC
 
 namespace WebCore {
@@ -53,16 +56,23 @@ public:
     virtual void visitAdditionalChildren(JSC::AbstractSlotVisitor&) const = 0;
 
 protected:
-    bool m_active { true };
+    JSC::VM& globalVM() const
+    {
+        auto* globalObject = protectedScriptExecutionContext()->globalObject();
+        ASSERT(globalObject);
+        return globalObject->vm();
+    }
+
+    // ActiveDOMObject
+    void stop() override { }
+    bool virtualHasPendingActivity() const override { return m_active; }
 
     InternalObserver(ScriptExecutionContext& context)
         : ActiveDOMObject(&context)
     {
     }
 
-    // ActiveDOMObject
-    void stop() override { }
-    bool virtualHasPendingActivity() const override { return m_active; }
+    bool m_active { true };
 };
 
 } // namespace WebCore
